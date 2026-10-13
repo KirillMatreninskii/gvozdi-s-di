@@ -411,7 +411,7 @@ addEventListener('resize', fit);
 const html = document.documentElement;
 const meter = /[?&]fps/.test(location.search) ? Object.assign(document.createElement('div'), { id: 'fpsmeter' }) : null;
 if (meter) document.body.appendChild(meter);
-let last = performance.now(), buf = [], level = 0, since = performance.now(), shown = 0, born = last;
+let last = performance.now(), buf = [], level = 0, since = performance.now(), shown = 0, born = last, capped = false;
 const set = n => { level = n; html.dataset.q = String(n); since = performance.now(); buf = []; if (window.__needleQuality) window.__needleQuality(n); };
 const tick = now => {
 requestAnimationFrame(tick);
@@ -420,12 +420,19 @@ if (document.hidden || html.dataset.modal || dt > 250) { buf = []; return; }
 buf.push(dt);
 if (meter && now - shown > 500) {
 shown = now; const s = [...buf].sort((a, b) => a - b), med = s.length ? s[s.length >> 1] : 0;
-meter.textContent = `${med ? Math.round(1000 / med) : '--'} fps · ${med.toFixed(1)} ms · q${level}`;
+meter.textContent = `${med ? Math.round(1000 / med) : '--'} fps · ${med.toFixed(1)} ms · q${level}${capped ? ' · ограничение системы' : ''}`;
 }
 if (buf.length >= 50) {
 const s = [...buf].sort((a, b) => a - b), med = s[s.length >> 1], p90 = s[Math.floor(s.length * .9)];
+const p10 = s[Math.floor(s.length * .1)];
 buf = buf.slice(25);
-if (now - born > 3500 && now - since > 3000 && level < 3 && (med > 22 || p90 > 40)) set(level + 1);
+const flat30 = med > 30 && med < 37 && p10 > 28 && p90 < 40;
+if (!capped && flat30 && level >= 2 && now - since > 3000) {
+capped = true; set(0);
+if (window.__dropLenis) window.__dropLenis();   // let the browser scroll natively instead of running a 30 fps scroll loop
+} else if (capped) {
+if (med < 20) capped = false;                   // the cap went away (power saver switched off): resume normal behaviour
+} else if (now - born > 3500 && now - since > 3000 && level < 3 && (med > 22 || p90 > 40)) set(level + 1);
 }
 };
 requestAnimationFrame(tick);
@@ -448,7 +455,8 @@ let lenis = null;
 if (!reduce && window.Lenis && hasGsap) {
 lenis = new Lenis({ lerp: .11, wheelMultiplier: 1 });
 lenis.on('scroll', ScrollTrigger.update);
-gsap.ticker.add(t => lenis.raf(t * 1000));
+gsap.ticker.add(t => { if (lenis) lenis.raf(t * 1000); });
+window.__dropLenis = () => { if (lenis) { lenis.destroy(); lenis = null; } };
 gsap.ticker.lagSmoothing(0);
 }
 const goTo = (target) => {
