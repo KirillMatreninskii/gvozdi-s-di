@@ -491,7 +491,6 @@ const ng = c.createGain(); ng.gain.value = .12 * vel; n.connect(bp).connect(ng).
 }
 };
 Sound.on = true;
-try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
 const soundBtn = document.getElementById('soundBtn');
 const soundLbl = soundBtn.querySelector('.lbl');
 const paintSound = () => { soundBtn.setAttribute('aria-pressed', String(Sound.on)); soundLbl.textContent = Sound.on ? 'Звук' : 'Без звука'; };
@@ -506,11 +505,9 @@ const s = c.createBufferSource(); s.buffer = c.createBuffer(1, 1, c.sampleRate);
 }
 };
 ['pointerdown', 'touchend', 'click', 'keydown'].forEach(ev => addEventListener(ev, wake, true));
-const setSession = t => { try { if (navigator.audioSession) navigator.audioSession.type = t; } catch (e) {} };
-const sleepAudio = () => { setSession('auto'); if (Sound.ctx && Sound.ctx.state === 'running') Sound.ctx.suspend().catch(() => {}); };
+const sleepAudio = () => { if (Sound.ctx && Sound.ctx.state === 'running') Sound.ctx.suspend().catch(() => {}); };
 document.addEventListener('visibilitychange', () => {
 if (document.hidden) { sleepAudio(); return; }
-setSession('playback');
 if (Sound.ctx && Sound.ctx.state !== 'running') Sound.ctx.resume();
 });
 addEventListener('pagehide', sleepAudio);
