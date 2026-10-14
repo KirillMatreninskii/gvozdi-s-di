@@ -506,7 +506,14 @@ const s = c.createBufferSource(); s.buffer = c.createBuffer(1, 1, c.sampleRate);
 }
 };
 ['pointerdown', 'touchend', 'click', 'keydown'].forEach(ev => addEventListener(ev, wake, true));
-document.addEventListener('visibilitychange', () => { if (!document.hidden && Sound.ctx && Sound.ctx.state !== 'running') Sound.ctx.resume(); });
+const setSession = t => { try { if (navigator.audioSession) navigator.audioSession.type = t; } catch (e) {} };
+const sleepAudio = () => { setSession('auto'); if (Sound.ctx && Sound.ctx.state === 'running') Sound.ctx.suspend().catch(() => {}); };
+document.addEventListener('visibilitychange', () => {
+if (document.hidden) { sleepAudio(); return; }
+setSession('playback');
+if (Sound.ctx && Sound.ctx.state !== 'running') Sound.ctx.resume();
+});
+addEventListener('pagehide', sleepAudio);
 soundBtn.addEventListener('click', () => {
 if (Sound.on && !Sound.heard) { Sound.bowl(220, .8); energy.v = 1; return; }
 Sound.on = !Sound.on;
